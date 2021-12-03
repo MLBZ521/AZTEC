@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 import os
 
@@ -19,16 +18,13 @@ def main():
 
     # Check if the database file currently exists
     if os.path.isfile("devices.db"):
-
         results = utilities.query_user_yes_no("The devices database already exists, would you like to purge the existing content?")
 
         if results:
-
             print("Purging previous content...")
             db_utils.init_db("devices.db")
 
     else:
-
         db_utils.init_db("devices.db")
 
     print("\nStarting the main process...\n")

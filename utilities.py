@@ -4,6 +4,7 @@ import plistlib
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import urllib.request
 from distutils.util import strtobool
@@ -35,14 +36,12 @@ def runUtility(command):
         shell=False, universal_newlines=True )
     (stdout, stderr) = process.communicate()
 
-    result_dict = {
+    return {
         "stdout": (stdout).strip(),
         "stderr": (stderr).strip() if stderr != None else None,
         "exitcode": process.returncode,
-        "success": True if process.returncode == 0 else False
+        "success": process.returncode == 0,
     }
-
-    return result_dict
 
 
 def firmware_check(model):
@@ -52,16 +51,15 @@ def firmware_check(model):
         model:  Device mode, e.g. "iPad6,11"
 
     Returns:
-        stdout:  latest firmware version as str, e.g. "13.6"
+        stdout:  latest firmware version as str, e.g. "13.6" or None
     """
 
     # Create a list to add compatible firmwares too
     all_fw = []
 
     # Look up current version results
-    response = urllib.request.urlopen("http://phobos.apple.com/version").read()
-
-    # Read the plist response
+    # response = urllib.request.urlopen("http://phobos.apple.com/version").read()
+    response = urllib.request.urlopen("http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version/").read()
     content = plistlib.loads(response)
 
     # Get the dict item that contains the info required
@@ -79,15 +77,11 @@ def firmware_check(model):
             all_fw.append(firmware_version)
 
         except:
-
             pass
 
-    if len(all_fw) > 0:
-
+    if all_fw:
         # Sort the firmware list so that the newest if item 0 and grab that
-        latest_firmware = sorted(all_fw, key=parse_version, reverse=True)[0]
-
-        return latest_firmware
+        return sorted(all_fw, key=parse_version, reverse=True)[0]
 
     else:
         return None
@@ -120,6 +114,8 @@ def clean_configurator_temp_dir():
     automatically cleaned up by the cfgutil process.
     """
 
+    # print("User Context:  ", os.getlogin())
+
     # Get the time stamp thirty minutes in the past.
     reference_time = (datetime.datetime.now() - datetime.timedelta(seconds=-1800)).timestamp()
 
@@ -133,20 +129,23 @@ def clean_configurator_temp_dir():
             if re.search('com.apple.configurator.xpc.DeviceService', folder):
 
                 # Loop through the folders to find the desired folder
-                for folder in os.scandir(os.path.join(root, folder)):
+                for sub_folder in os.scandir(os.path.join(root, folder)):
 
                     # Confirm item is a folder and check the name
-                    if folder.is_dir() and folder.name == "TemporaryItems":
+                    if sub_folder.is_dir() and sub_folder.name == "TemporaryItems":
+
+                        # Change permissions so that the group can read the folder
+                        # os.chmod(sub_folder.path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IWGRP)
 
                         # Loop through the sub folders
-                        for folder in os.scandir(folder.path):
+                        for sub_sub_folder in os.scandir(sub_folder.path):
 
                             # Again, confirm item is a folder and check it's last access time
-                            if folder.is_dir() and os.path.getatime(folder) < reference_time and is_string_GUID(folder.name):
+                            if sub_sub_folder.is_dir() and os.path.getatime(sub_sub_folder) < reference_time and is_string_GUID(sub_sub_folder.name):
 
                                 # Delete the directory:
-                                print("Deleting temporary directory:  {}".format(folder.name))
-                                shutil.rmtree(folder.path)
+                                print("Deleting temporary directory:  {}".format(sub_sub_folder.name))
+                                shutil.rmtree(sub_sub_folder.path)
 
 
 # Credit to Mitch McMabers / https://stackoverflow.com/a/63839503
