@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import plistlib
 import re
@@ -10,6 +11,24 @@ import urllib.request
 from distutils.util import strtobool
 from pkg_resources import parse_version
 from typing import List, Union
+
+
+def verbose_output(message, buffer = True):
+
+    date = datetime.datetime.now().strftime("%Y-%m-%d %I:%M:%S")
+    tab = "\t" if buffer else ""
+
+    message = re.sub(r"objc\[\d+\]: Class AMSupport.+ Which one is undefined\.", "", message)
+    print("{}{} | {}".format(tab, date, message))
+
+
+def parse_json(json_data):
+
+    try:
+        return json.loads(json_data)
+
+    except:
+        return json_data
 
 
 def runUtility(command):
@@ -117,7 +136,7 @@ def clean_configurator_temp_dir():
     # print("User Context:  ", os.getlogin())
 
     # Get the time stamp thirty minutes in the past.
-    reference_time = (datetime.datetime.now() - datetime.timedelta(seconds=-1800)).timestamp()
+    reference_time = (datetime.datetime.now() - datetime.timedelta(seconds=1800)).timestamp()
 
     # Walk the directory provided for recipes
     for root, folders, files in os.walk("/private/var/folders"):
@@ -135,7 +154,7 @@ def clean_configurator_temp_dir():
                     if sub_folder.is_dir() and sub_folder.name == "TemporaryItems":
 
                         # Change permissions so that the group can read the folder
-                        # os.chmod(sub_folder.path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IWGRP)
+                        os.chmod(sub_folder.path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IWGRP)
 
                         # Loop through the sub folders
                         for sub_sub_folder in os.scandir(sub_folder.path):

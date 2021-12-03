@@ -1,5 +1,6 @@
-import json
+# from distutils import util
 import os
+import random
 import re
 import sys
 import time
@@ -22,12 +23,12 @@ def prepare_device(ECID):
             (ECID,)).fetchone()
 
     if device["status"] == "erased":
-        print("\t{}:  \u23F3 Waiting for device to finish booting...".format(device["SerialNumber"]))
+        utilities.verbose_output("{} | \u23F3 Waiting for device to finish booting...".format(device["SerialNumber"]))
 
         # Sleep while the device erases and starts back up
         time.sleep(70)
 
-    print("\t{}:  \u2699 Preparing".format(device["SerialNumber"]))
+    utilities.verbose_output("{} | \u2699 Preparing".format(device["SerialNumber"]))
 
     # Update status in the database
     with Query() as run:
@@ -43,94 +44,114 @@ def prepare_device(ECID):
     # print("\tresults_prepare > stderr:  {}".format(results_prepare["stderr"]))
 
     # Verify success
-    if not results_prepare["success"]:
+    if results_prepare["success"]:
 
-        # try:
-        json_prepare_results = json.loads(results_prepare["stdout"])
+        # Add the end time to the database
+        report_end_time(device)
 
-        # Verify results apply to the same device in error output
-        if json_prepare_results["Code"] == -402653030 and device['ECID'] in json_prepare_results["AffectedDevices"]:
+    else:
 
-            print("\t{}:  Policy prevents device from pairing with this computer, no futher information can be gathered!".format(device['SerialNumber']))
-
-            # Add the end time to the database
-            # print("prepare_device > report_end_time:  pairing prevented")
-            report_end_time(device)
-
-        # elif json_prepare_results["Message"] == ( "The device is not connected." or
-        #         "This device is no longer connected." ):
-            # Error Code 603 / -402653052
-        elif json_prepare_results["Code"] in { -402653052, 603 } and device['ECID'] in json_prepare_results["AffectedDevices"]:
-
-            # Device may have successfully Prepared, but was unable to capture that accurately
-            print("\t{}:  \u26A0 [WARNING] Unable to ".format(device["SerialNumber"]) +
-                "determine device state, it will be checked on its next attach")
-
-            # Update status in the database
-            with Query() as run:
-                results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
-                    ("check", device["ECID"]))
-
-            # print("Exiting...")
-            sys.exit(0)
-
-        # Error Code 33001 / 607
-        elif json_prepare_results["Message"] == ( "The configuration is not available." or 
-            "The device is not activated" ):
-
-            print("\t{}:  \u26A0 [WARNING] Unable to prepare device.  \n\t\tError:\n{}".format(
-                device["SerialNumber"], json_prepare_results["Message"]))
+        if re.match("The device is not activated.", results_prepare["stdout"]):
+#DO SOMETHING HERE
+            utilities.verbose_output("{} | \u26A0 [WARNING] The device was not activated, trying again.  \n\t\tError:\n{}".format(
+                device["SerialNumber"], results_prepare["stdout"]))
 
             # Attempt to Prepare device (again)
             prepare_device(device["ECID"])
 
-        elif ( json_prepare_results["Message"] == 
-            "The device is already prepared and must be erased to change settings." ):
+        # try:
+        json_prepare_results = utilities.parse_json(results_prepare["stdout"])
 
-            # If the device was already prepared, erase it
-            print("\t{}:  Device was already prepared, erasing it...".format(device["SerialNumber"]))
-            # # If the device was already prepared, continue on
-            # print("\t{}:  Device is supervised and prepared!".format(device["SerialNumber"]))
+        if isinstance(json_prepare_results, dict):
 
-            # Erase device
-            erase_device(device)
+            # Verify results apply to the same device in error output
+            if json_prepare_results["Code"] == -402653030 and device['ECID'] in json_prepare_results["AffectedDevices"]:
 
-            # Update status in the database
-            # with Query() as run:
-            #     results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
-            #         ("done", device["ECID"]))
+                utilities.verbose_output("{} | Policy prevents device from pairing with this computer, no futher information can be gathered!".format(device['SerialNumber']))
 
-            # print("prepare_device > report_end_time: done")
-            # report_end_time(device)
+                # Add the end time to the database
+                # print("prepare_device > report_end_time:  pairing prevented")
+                report_end_time(device)
 
+            # elif json_prepare_results["Message"] == ( "The device is not connected." or
+            #         "This device is no longer connected." ):
+                # Error Code 603 / -402653052
+            elif json_prepare_results["Code"] in { -402653052, 603 } and device['ECID'] in json_prepare_results["AffectedDevices"]:
+
+                # Device may have successfully Prepared, but was unable to capture that accurately
+                utilities.verbose_output("{} | \u26A0 [WARNING] Unable to ".format(device["SerialNumber"]) +
+                    "determine device state, it will be checked on its next attach")
+
+                # Update status in the database
+                with Query() as run:
+                    results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
+                        ("check", device["ECID"]))
+
+                # print("Exiting...")
+                sys.exit(0)
+
+            # Error Code 33001 / 607
+            elif json_prepare_results["Message"] == "The device is not activated.":
+
+                utilities.verbose_output("{} | \u26A0 [WARNING] The device was not activated, trying again.  \n\t\tError:\n{}".format(
+                    device["SerialNumber"], json_prepare_results["Message"]))
+
+                # Attempt to Prepare device (again)
+                prepare_device(device["ECID"])
+
+            elif json_prepare_results["Message"] == "The configuration is not available.":
+
+                utilities.verbose_output("{} | \u26A0 [WARNING] Unable to prepare device.  \n\t\tError:  {}".format(
+                    device["SerialNumber"], json_prepare_results["Message"]))
+
+                # Erase device
+                erase_device(device)
+
+            elif ( json_prepare_results["Message"] == 
+                "The device is already prepared and must be erased to change settings." ):
+
+                # If the device was already prepared, erase it
+                utilities.verbose_output("{} | Device was already prepared, erasing it...".format(device["SerialNumber"]))
+                # # If the device was already prepared, continue on
+                # utilities.verbose_output("{} | Device is supervised and prepared!".format(device["SerialNumber"]))
+
+                # Erase device
+                erase_device(device)
+
+                # Update status in the database
+                # with Query() as run:
+                #     results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
+                #         ("done", device["ECID"]))
+
+                # print("prepare_device > report_end_time: done")
+                # report_end_time(device)
+
+            else:
+
+                # If the device failed to prepare, erase and try again
+                utilities.verbose_output("{} | \u26A0 [WARNING] Unaccounted for prepare failure!".format(
+                    device["SerialNumber"]))
+    ##### Dev/Debug output (to be removed) 
+                # print("Unknown failure.  Error information:")
+                print("results_prepare > stdout:  ", results_prepare["stdout"])
+                print("results_prepare > stderr:  ".format(re.sub(r"objc\[\d+\]: Class AMSupport.+ Which one is undefined\.", "", results_prepare["stderr"])))
+
+                # Erase device
+                erase_device(device)
+
+    #         except:
+    #             # Catch all other unknown errors
+
+    # ##### Dev/Debug output (to be removed)
+    #             print("Exception Error information:")
+    #             print("stdout:  ", results_prepare["stdout"])
+    #             print("stderr:  ", results_prepare["stderr"])
+
+    #             # Erase device
+    #             erase_device(device)
         else:
 
-            # If the device failed to prepare, erase and try again
-            print("\t{}:  \u26A0 [WARNING] Unaccounted for prepare failure!".format(
-                device["SerialNumber"]))
-##### Dev/Debug output (to be removed) 
-            # print("Unknown failure.  Error information:")
-            print("results_prepare > stdout:  ", results_prepare["stdout"])
-            print("results_prepare > stderr:  ", results_prepare["stderr"])
-
-            # Erase device
-            erase_device(device)
-
-#         except:
-#             # Catch all other unknown errors
-
-# ##### Dev/Debug output (to be removed)
-#             print("Exception Error information:")
-#             print("stdout:  ", results_prepare["stdout"])
-#             print("stderr:  ", results_prepare["stderr"])
-
-#             # Erase device
-#             erase_device(device)
-
-    else:
-        # print("prepare_device > report_end_time:  successfully prepared")
-        # Add the end time to the database
-        report_end_time(device)
+            utilities.verbose_output("\U0001F6D1 [ERROR]:  Failed prepare device for unknown reason...  Error was:\n{}".format(json_prepare_results))
 
 
 def erase_device(device):
@@ -140,12 +161,18 @@ def erase_device(device):
         device:  Object of device's information from the database
     """
 
+    try:
+        identifier = device["serialNumber"]
+
+    except KeyError:
+        identifier = device["ECID"]
+
     # Erase Device
-    print("\t{}:  \u2620 To proceed, the device will be erased!".format(device["serialNumber"]))
-    print("\t{}:  \u26A0\u26A0\u26A0 *** You have five seconds to remove the device before it is wiped! *** \u26A0\u26A0\u26A0".format(device["serialNumber"]))
+    utilities.verbose_output("{} | \u2620 To proceed, the device will be erased!".format(identifier))
+    utilities.verbose_output("{} | \u26A0\u26A0\u26A0 *** You have five seconds to remove the device before it is wiped! *** \u26A0\u26A0\u26A0".format(identifier))
 
     time.sleep(5)
-    print("\t{}:  \U0001F4A3 Erasing device...".format(device["serialNumber"]))
+    utilities.verbose_output("{} | \U0001F4A3 Erasing device...".format(identifier))
 
     results_erase = utilities.runUtility( "cfgutil --ecid {} erase".format(device["ECID"]) )
 
@@ -157,14 +184,14 @@ def erase_device(device):
             results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
                 ("erasing", device["ECID"]))
 
-    elif re.match( "cfgutil: error: no devices found", results_erase["stderr"] ):
-        print("\t{}:  \U0001F605 Disaster averted, device was not erased!".format(
+    elif re.match( "cfgutil: error: no devices found", results_erase["stderr"]):
+        utilities.verbose_output("{} | \U0001F605 Disaster averted, device was not erased!".format(
             device["serialNumber"]))
 
     else:
-        print("\tERROR:  \U0001F6D1 Failed to erase the device")
-        print("\tReturn Code {}".format(results_erase["exitcode"]))
-        print("\t{}".format(results_erase["stderr"]))
+        utilities.verbose_output("{} | \U0001F6D1 ERROR:  Failed to erase the device".format(identifier))
+        utilities.verbose_output("Return Code {}".format(results_erase["exitcode"]))
+        print("\t{}".format(re.sub(r"objc\[\d+\]: Class AMSupport.+ Which one is undefined\.", "", results_erase["stderr"])))
 
 
 def restore_device(device):
@@ -175,34 +202,83 @@ def restore_device(device):
     """
 
     try:
-        identifer = device["serialNumber"]
+        identifier = device["serialNumber"]
+        in_queue=True
 
     except KeyError:
-        identifer = device["ECID"]
+        identifier = device["ECID"]
+        in_queue=False
 
     # Update device using Restore, which will also erase it
-    print("\t{}:  \U0001F4A3 Erasing and updating device...".format(identifer))
+    utilities.verbose_output("{} | \U0001F4A3 Erasing and updating device...".format(identifier))
+
+    # delay = random.randrange(10, 200)
+    # print("Random Delay before restore:  {}".format(delay))
+    # time.sleep(delay)
 
     results_restore = utilities.runUtility( 
-        "cfgutil --ecid {} restore".format(device["ECID"]) )
+        "cfgutil -vvvv --format JSON --ecid {} restore".format(device["ECID"]) )
 
     # Verify success
     if not results_restore["success"]:
-        print("\tERROR:  \U0001F6D1 Failed to restore device from Recovery Mode")
-        print("\tReturn Code {}".format(results_restore["exitcode"]))
-        print("\t{}".format(results_restore["stderr"]))
+        utilities.verbose_output("{} | \U0001F6D1 ERROR:  Failed to restore device from Recovery Mode".format(
+            device["ECID"]))
+        utilities.verbose_output("Return Code {}".format(results_restore["exitcode"]))
 
-        # Update status in the database
-        with Query() as run:
-            results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
-                ("error", device['ECID']))
+# Verbose Testing output
+        utilities.verbose_output("stderr:  {}".format(results_restore["stderr"]))
+
+        if re.match(r"objc\[\d+\]: Class AMSupport.+ Which one is undefined\.", results_restore["stdout"]):
+            sys.exit(0)
+
+        json_restore_results = utilities.parse_json(results_restore["stdout"])
+# Verbose Testing output
+        print("Attempted to restore device; results were:\n{}".format(json_restore_results))
+
+        if isinstance(json_restore_results, dict):
+
+            if json_restore_results["Message"] == "This action cannot be performed on the device while it is already in use.":
+
+                utilities.verbose_output("{} | \u26A0 [WARNING] Device is already performing another command.  \n\t\tError:  {}".format(
+                    identifier, json_restore_results["Message"]))
+
+                utilities.verbose_output("{} | \u26A0 [NOTICE] Exiting this thread.".format(identifier))
+                sys.exit(0)
+
+            else:
+
+                while has_not_booted(device):
+                    pass
+
+                # # Erase device
+                # erase_device(device)
+
+                # Update status in the database
+                # with Query() as run:
+                #     results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
+                #         ("error", device['ECID']))
+
+        else:
+
+            utilities.verbose_output("\U0001F6D1 [ERROR]:  Failed restore device for unknown reason...  Error was:\n{}".format(json_restore_results))
 
     else:
 
-        get_serial_number(device["ECID"])
+        if in_queue:
 
-        # Prepare Device
-        prepare_device(device["ECID"])
+            # Update status in the database
+            with Query() as run:
+                results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
+                    ("erased", device["ECID"]))
+
+            get_serial_number(device["ECID"])
+
+            # Prepare Device
+            prepare_device(device["ECID"])
+
+        else:
+
+            return
 
 
 def get_serial_number(ECID):
@@ -243,7 +319,7 @@ def report_end_time(device):
             (currentTime, device["id"]))
 
     # Successfully Prepared device
-    print("\t{}:  \U0001F7E2 [UNPLUG] Device has been provisioned".format(device["SerialNumber"]))
+    utilities.verbose_output("{} | \U0001F7E2 [DONE] Device has been provisioned, it can be unplugged!".format(device["SerialNumber"]))
 
 
 def get_session_info(ECID):
@@ -259,13 +335,14 @@ def get_session_info(ECID):
 
     results_get_session_info = utilities.runUtility( 
         "cfgutil --ecid {} --format JSON get ".format(ECID) + 
-            "activationState bootedState isSupervised" )
+            "activationState bootedState isSupervised UDID deviceType buildVersion \
+            firmwareVersion locationID batteryCurrentCapacity batteryIsCharging" )
 
     # Verify success
     if results_get_session_info["success"]:
         # Load the JSON into an Object
         # print("\tReturning session info:  {}".format(results_get_session_info["stdout"]))
-        return json.loads(results_get_session_info["stdout"])
+        return utilities.parse_json(results_get_session_info["stdout"])["Output"]
 
     # print("\tERROR:  \u26A0 Unable to obtain device info")
     # print("\tReturn Code:  {}".format(results_get_session_info["exitcode"]))
@@ -285,15 +362,63 @@ def get_session_info(ECID):
 def create_record(ECID):
 
     # Device is not in the queue, so needs to be erased.
-    print("\t{}:  \u2795 Adding device to queue...".format(ECID))
+    utilities.verbose_output("{} | \u2795 Adding device to queue...".format(ECID))
+
+    session_info_full = get_session_info(ECID)
+    activationState = (
+        os.getenv("activationState")
+        or session_info_full[ECID]["activationState"]
+    )
+
+    bootedState = (
+        os.getenv("bootedState")
+        or session_info_full[ECID]["bootedState"]
+    )
+
+    isSupervised = (
+        os.getenv("isSupervised")
+        or session_info_full[ECID]["isSupervised"]
+    )
+
+    udid = os.getenv("UDID") or session_info_full[ECID]["UDID"]
+    deviceType = (
+        os.getenv("deviceType")
+        or session_info_full[ECID]["deviceType"]
+    )
+
+    buildVersion = (
+        os.getenv("buildVersion")
+        or session_info_full[ECID]["buildVersion"]
+    )
+
+    firmwareVersion = (
+        os.getenv("firmwareVersion")
+        or session_info_full[ECID]["firmwareVersion"]
+    )
+
+    locationID = (
+        os.getenv("locationID")
+        or session_info_full[ECID]["locationID"]
+    )
+
+    batteryCurrentCapacity = (
+        os.getenv("batteryCurrentCapacity")
+        or session_info_full[ECID]["batteryCurrentCapacity"]
+    )
+
+    batteryIsCharging = (
+        os.getenv("batteryIsCharging")
+        or session_info_full[ECID]["batteryIsCharging"]
+    )
 
     with Query() as run:
         # Add device to database
         run.execute("INSERT INTO devices ( status, ECID, UDID, \
-            deviceType, buildVersion, firmwareVersion, locationID) VALUES (?, ?, ?, ?, \
-            ?, ?, ?)", ( 'new', ECID, os.getenv("UDID"), 
-                os.getenv("deviceType"), os.getenv("buildVersion"), 
-                os.getenv("firmwareVersion"), os.getenv("locationID") ) )
+            deviceType, buildVersion, firmwareVersion, locationID, activationState, \
+            bootedState, isSupervised, batteryCurrentCapacity, batteryIsCharging) \
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ( 'new', ECID, udid, deviceType, buildVersion, firmwareVersion, locationID, 
+            activationState, bootedState, isSupervised, batteryCurrentCapacity, batteryIsCharging) )
 
         # Get the device's details
         device = run.execute('SELECT * FROM devices WHERE ECID = ?', 
@@ -313,21 +438,48 @@ def has_not_booted(device):
 
     # Get the devices' boot state
     results_booted_state = utilities.runUtility( 
-        "cfgutil --ecid {} get bootedState".format(device["ECID"]) )
+        "cfgutil --ecid {} --format JSON get bootedState".format(device["ECID"]) )
+
+    # print(results_booted_state)
 
     # Verify success
     if not results_booted_state["success"]:
-        print("\tERROR:  \U0001F6D1 Failed to get devices boot state!")
-        print("\tReturn Code {}".format(results_booted_state["exitcode"]))
-        print("\t{}".format(results_booted_state["stderr"]))
+        utilities.verbose_output("{} | \U0001F6D1 ERROR:  Failed to get devices boot state!".format(device["ECID"]))
+        utilities.verbose_output("Return Code {}".format(results_booted_state["exitcode"]))
+        utilities.verbose_output("{}".format(results_booted_state["stderr"]))
         # Hard exiting for now, until a reason not to is discovered.
         sys.exit(2)
         return True
 
-    elif results_booted_state["stdout"] != "Booted":
-        print("\t{}:  \u23F3 Waiting for device to boot...".format(device["SerialNumber"]))
-        time.sleep(5)
-        return True
+    else:
+
+        json_results_booted_state = utilities.parse_json(results_booted_state["stdout"])
+        # print(json_results_booted_state["Output"][device["ECID"]]["bootedState"])
+
+        if isinstance(json_results_booted_state, dict):
+
+            if json_results_booted_state["Output"][device["ECID"]]["bootedState"] == "Recovery":
+                utilities.verbose_output("{} | \u26A0 [WARNING] Device is currently booted to Recovery Mode (DFU)...".format(
+                    device["ECID"]))
+                restore_device(device)
+                return True
+                # sys.exit(0)
+
+            elif json_results_booted_state["Output"][device["ECID"]]["bootedState"] == "Restore":
+                utilities.verbose_output("{} | \u26A0 [STATUS] Device is currently being restored...".format(
+                    device["ECID"]))
+                time.sleep(60)
+                return True
+                # sys.exit(0)
+
+            elif json_results_booted_state["Output"][device["ECID"]]["bootedState"] != "Booted":
+                utilities.verbose_output("{} | \u23F3 Waiting for device to boot...".format(device["ECID"]))
+                time.sleep(5)
+                return True
+
+        else:
+
+            utilities.verbose_output("\U0001F6D1 [ERROR]:  Failed to get devices boot state...  Error was:\n{}".format(json_results_booted_state))
 
     return False
 
@@ -339,13 +491,18 @@ def main():
     print("Monitoring Available Disk Space:  {}".format(free))
 
     # Get the sessions' device ECID (this will be our primary unique 
-    # identifer for this device during for subsequent sessions )
+    # identifier for this device during for subsequent sessions )
     session_ECID = os.getenv('ECID')
 
-    # If a device was successfully detected
-    if session_ECID:
+    if not session_ECID:
 
-        print("{}:  [ATTACH WORKFLOW]".format(session_ECID))
+        # If a device was not successfully detected
+        utilities.verbose_output("\U0001F6D1 [ERROR] Unable to determine device information for an attached device!")
+
+    else:
+
+        # If a device was successfully detected
+        utilities.verbose_output("{}:  [ATTACH WORKFLOW]".format(session_ECID), False)
 
         # Check if device has been added to database
         with Query() as run:
@@ -355,17 +512,22 @@ def main():
         if not device:
             device = create_record(session_ECID)
 
+        # check_state = dict
+        check_state = { "ECID": session_ECID }
+        while has_not_booted(check_state):
+            pass
+
         # Get the devices' serial number (this will be for user facing content)
         # print("main > get_session_info")
         session_info_full = get_session_info(session_ECID)
 
         try:
 
-            session_info_error = session_info_full["Output"]["Errors"][session_ECID]
+            session_info_error = session_info_full["Errors"][session_ECID]
 
             if session_info_error["serialNumber"]["Code"] == -402653030:
 
-                print("\t{}:  \u26A0 [WARNING] Unable to pair with device, erasing...".format(session_ECID))
+                utilities.verbose_output("{} | \u26A0 [WARNING] Unable to pair with device, erasing...".format(session_ECID))
 
                 # Get the device's details
                 with Query() as run:
@@ -378,12 +540,14 @@ def main():
             pass
 
 
-        session_info = session_info_full["Output"][session_ECID]
+        session_info = session_info_full[session_ECID]
 
         if session_info["bootedState"] == "Recovery":
-            print("\t{}:  \u26A0 [WARNING] Device is currently booted to Recovery Mode (DFU)...".format(
+            utilities.verbose_output("{} | \u26A0 [WARNING] Device is currently booted to Recovery Mode (DFU)...".format(
                 session_ECID))
-            restore_device(device)
+            # restore_device(device)
+            utilities.verbose_output("\U0001F6D1 [ERROR] NEED TO FIGURE OUT HOW TO HANDLE AT THIS POINT!")
+            sys.exit(0)
 
         else:
 
@@ -409,7 +573,7 @@ def main():
                 else:
                     # Firmware is the latest, so simply erase the device
                     erase_device(device)
-                
+
             else:
                 # Device has already started the provisioning process
 
@@ -431,12 +595,12 @@ def main():
                         report_end_time(device)
 
                     elif device["status"] == "done":
-                        print("\t{}:  \U0001F7E2 [UNPLUG] Device configuration likely initiated a reboot, it is safe to unplug.".format(device["SerialNumber"]))
+                        utilities.verbose_output("{} | \U0001F7E2 [UNPLUG] Device configuration likely initiated a reboot, it is safe to unplug.".format(device["SerialNumber"]))
 
                     else:
 
                         # Unknown device state
-                        print("\t{}:  \u26A0 [WARNING] Unknown device state".format(device["SerialNumber"]))
+                        utilities.verbose_output("{} | \u26A0 [WARNING] Unknown device state".format(device["SerialNumber"]))
 
                         # Erase the device
                         erase_device(device)
@@ -447,13 +611,10 @@ def main():
             # ^^^ Maybe check against a [ list of known device states] ?
 
                     # Unknown device state
-                    print("\t{}:  \u26A0 [WARNING] Unknown device state".format(device["SerialNumber"]))
+                    utilities.verbose_output("{} | \u26A0 [WARNING] Unknown device state".format(device["SerialNumber"]))
 
                     # Erase the device
                     erase_device(device)
-
-    else:
-        print("\t  \U0001F6D1 [ERROR] Unable to determine device information for an attached device!")
 
 
     # try:

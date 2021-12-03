@@ -1,6 +1,7 @@
+import random
 import sqlite3
 import sys
-
+import time
 
 class Query():
     """A Class that creates a Context Manager to interact with a sqlite database"""
@@ -40,24 +41,6 @@ def init_db(database):
         database:  The name of the database file to create
     """
 
-    devices_table = """ CREATE TABLE devices (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            "status" TEXT,
-                            ECID TEXT NOT NULL,
-                            SerialNumber TEXT,
-                            UDID TEXT NOT NULL,
-                            deviceType TEXT NOT NULL,
-                            buildVersion TEXT NOT NULL,
-                            firmwareVersion TEXT NOT NULL,
-                            locationID TEXT NOT NULL
-                        ); """
-
-    report_table = """ CREATE TABLE IF NOT EXISTS report (
-                            id INTEGER,
-                            start_time INTEGER,
-                            end_time INTEGER
-                        ); """
-
     print("Initalizing the database...\n")
 
     # Check if the tables exist
@@ -72,6 +55,23 @@ def init_db(database):
     # 1 = exists
     if result_devices[0] != 1:
 
+        devices_table = """ CREATE TABLE devices (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            status TEXT,
+                            ECID TEXT NOT NULL,
+                            SerialNumber TEXT,
+                            UDID TEXT,
+                            deviceType TEXT,
+                            buildVersion TEXT,
+                            firmwareVersion TEXT,
+                            locationID TEXT,
+                            activationState TEXT,
+                            bootedState TEXT,
+                            isSupervised TEXT,
+                            batteryCurrentCapacity INT,
+                            batteryIsCharging TEXT
+                        ); """
+
         # Create the devices table
         with Query() as run:
             results = run.execute(devices_table)
@@ -85,6 +85,12 @@ def init_db(database):
     # 1 = exists
     if result_report[0] != 1:
         
+        report_table = """ CREATE TABLE IF NOT EXISTS report (
+                            id INTEGER,
+                            start_time INTEGER,
+                            end_time INTEGER
+                        ); """
+
         # Create the report table
         with Query() as run:
             results = run.execute(report_table)
