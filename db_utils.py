@@ -44,7 +44,7 @@ def init_db(database):
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             "status" TEXT,
                             ECID TEXT NOT NULL,
-                            SerialNumber TEXT,
+                            SerialNumber TEXT NOT NULL,
                             UDID TEXT NOT NULL,
                             deviceType TEXT NOT NULL,
                             buildVersion TEXT NOT NULL,
@@ -84,7 +84,7 @@ def init_db(database):
 
     # 1 = exists
     if result_report[0] != 1:
-        
+
         # Create the report table
         with Query() as run:
             results = run.execute(report_table)

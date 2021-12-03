@@ -35,12 +35,14 @@ def runUtility(command):
         shell=False, universal_newlines=True )
     (stdout, stderr) = process.communicate()
 
-    return {
+    result_dict = {
         "stdout": (stdout).strip(),
         "stderr": (stderr).strip() if stderr != None else None,
         "exitcode": process.returncode,
-        "success": process.returncode == 0,
+        "success": True if process.returncode == 0 else False
     }
+
+    return result_dict
 
 
 def firmware_check(model):
@@ -50,15 +52,16 @@ def firmware_check(model):
         model:  Device mode, e.g. "iPad6,11"
 
     Returns:
-        stdout:  latest firmware version as str, e.g. "13.6" or None
+        stdout:  latest firmware version as str, e.g. "13.6"
     """
 
     # Create a list to add compatible firmwares too
     all_fw = []
 
     # Look up current version results
-    # response = urllib.request.urlopen("http://phobos.apple.com/version").read()
-    response = urllib.request.urlopen("http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version/").read()
+    response = urllib.request.urlopen("http://phobos.apple.com/version").read()
+
+    # Read the plist response
     content = plistlib.loads(response)
 
     # Get the dict item that contains the info required
@@ -76,11 +79,15 @@ def firmware_check(model):
             all_fw.append(firmware_version)
 
         except:
+
             pass
 
-    if all_fw:
+    if len(all_fw) > 0:
+
         # Sort the firmware list so that the newest if item 0 and grab that
-        return sorted(all_fw, key=parse_version, reverse=True)[0]
+        latest_firmware = sorted(all_fw, key=parse_version, reverse=True)[0]
+
+        return latest_firmware
 
     else:
         return None

@@ -1,8 +1,8 @@
-# import datetime
+import datetime
 import os
-# import random
-# import sqlite3
-# import time
+import random
+import sqlite3
+import time
 from db_utils import Query
 
 
@@ -38,15 +38,6 @@ def main():
                     results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
                         ("erased", session_ECID))
 
-            # # Check device's current state
-            # elif device['status'] == "reviving":
-            #     print("\t{}:  \U0001F4A5 Device is rebooting after attempting to revive it from recovery mode...".format(serial_number))
-
-            #     # Update status in the database
-            #     with Query() as run:
-            #         results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
-            #             ("erased", session_ECID))
-
             # Check device's current state
             elif device['status'] == "done":
 
@@ -68,6 +59,7 @@ def main():
                         (identifier,)).fetchone()
 
                 try:
+
                     # Get the difference in the start and end times
                     difference = int(report["end_time"]) - int(report["start_time"])
 
