@@ -1,4 +1,5 @@
 import datetime
+import logging.config
 import json
 import os
 import plistlib
@@ -7,19 +8,124 @@ import shlex
 import shutil
 import stat
 import subprocess
-import urllib.request
+import sys
+import time
+# import urllib.request
 from distutils.util import strtobool
 from pkg_resources import parse_version
 from typing import List, Union
 
+import requests
 
-def verbose_output(message, buffer = True):
+from actions import erase_device, prepare_device
+from db_utils import Query
 
-    date = datetime.datetime.now().strftime("%Y-%m-%d %I:%M:%S")
-    tab = "\t" if buffer else ""
 
-    message = re.sub(r"objc\[\d+\]: Class AMSupport.+ Which one is undefined\.", "", message)
-    print("{}{} | {}".format(tab, date, message))
+module_directory = os.path.dirname(os.path.realpath(__file__))
+
+
+def log_setup(log_name="MAIN"): #, device_log=None, level=logging.INFO):
+
+    class StrippingLogRecord(logging.LogRecord):
+
+        pattern = re.compile(r"objc\[\d+\]: Class AMSupport.+ Which one is undefined\.")
+
+        def getMessage(self):
+            message = super(StrippingLogRecord, self).getMessage()
+            message = self.pattern.sub("", message)
+            return message
+
+    logging.config.fileConfig(
+        "/{}/logging_config.ini".format(module_directory), 
+        disable_existing_loggers=False
+    )
+    logging.setLogRecordFactory(StrippingLogRecord)
+
+    return logging.getLogger(log_name)
+
+
+    # Example
+    # try:
+    #     # Do Something
+    #     pass
+    # except OSError as e:
+    #     logger.error(e, exc_info=True)
+    # except:
+    #     logger.error("uncaught exception: %s", traceback.format_exc())
+
+
+
+
+
+    # main_log_file = "/{}/logs/main.log".format(module_directory)
+
+
+
+    # if not logger.hasHandlers():
+
+    #     # Set loggin level
+    #     logger.setLevel(logging.DEBUG)
+
+    #     # Create file handler which logs even debug messages
+    #     main_file_handler = logging.FileHandler(main_log_file)
+    #     main_file_handler.setLevel(level)
+
+    #     # Create console handler with a higher log level
+    #     console_handler = logging.StreamHandler()
+    #     console_handler.setLevel(logging.DEBUG)
+
+    #     # Create file handler which logs even debug messages
+    #     if device_log:
+    #         device_file_handler = logging.FileHandler("/{}/logs/{}.log".format(module_directory, log_name))
+    #         device_file_handler.setLevel(level)
+
+
+    #     # Create formatter and add it to the handlers
+    #     formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s - %(message)s')
+    #     main_file_handler.setFormatter(formatter)
+    #     device_file_handler.setFormatter(formatter)
+    #     console_handler.setFormatter(formatter)
+
+    #     # Add the handlers to the logger
+    #     logger.addHandler(main_file_handler)
+    #     logger.addHandler(device_file_handler)
+    #     logger.addHandler(console_handler)
+
+    # return logger
+
+
+
+# def verbose_output(message, buffer = True):
+
+#     date = datetime.datetime.now().strftime("%Y-%m-%d %I:%M:%S")
+#     tab = "\t" if buffer else ""
+
+#     message = re.sub(r"objc\[\d+\]: Class AMSupport.+ Which one is undefined\.", "", message)
+#     print("{}{} | {}".format(tab, date, message))
+
+
+
+def report_end_time(device):
+    """Updates the database when the device has completed the provisioning process
+
+    Args:
+        device:  Object of device's information from the database
+    """
+
+    device_logger = log_setup(log_name=device["ECID"])
+
+    # Get current epoch time
+    currentTime = time.time()
+
+    # Update status and end time in the database
+    with Query() as run:
+        run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
+            ("done", device["ECID"]))
+        run.execute('UPDATE report SET end_time = ? WHERE id = ?', 
+            (currentTime, device["id"]))
+
+    # Successfully Prepared device
+    device_logger.info("\U0001F7E2 [DONE] Device has been provisioned, it can be unplugged!")
 
 
 def parse_json(json_data):
@@ -31,7 +137,92 @@ def parse_json(json_data):
         return json_data
 
 
-def runUtility(command):
+
+
+def check_for_cfgutil_errors(ECID, json_data):
+
+    device_logger = log_setup(log_name=ECID)
+
+    # Get the device's details
+    with Query() as run:
+        device = run.execute('SELECT * FROM devices WHERE ECID = ?', 
+            (ECID,)).fetchone()
+
+    if isinstance(json_data, dict) and ECID in json_data["AffectedDevices"]:
+    
+        if json_data["Errors"][ECID]["Code"] == -402653030:
+            device_logger.warning("\u26A0 Unable to pair with device, erasing...")
+
+
+            erase_device(device)
+
+        # Error Code 603 / -402653052
+        elif json_data["Code"] in { -402653052, 603 }:
+
+            # Device may have successfully Prepared, but was unable to capture that accurately
+            device_logger.warning(
+                "\u26A0 Unable to determine device state, it will be checked on its next attach")
+
+            # Update status in the database
+            with Query() as run:
+                run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
+                    ("check", ECID))
+
+            # print("Exiting...")
+            sys.exit(0)
+
+        # # Error Code 33001 / 607
+        # elif json_data["Message"] == "The device is not activated.":
+
+        #     device_logger.warning("\u26A0 The device was not activated, trying again.  \n\t\tError:\n{}".format(
+        #         json_data["Message"]))
+
+        #     # Attempt to Prepare device (again)
+        #     prepare_device(device)
+
+
+        # elif json_data["Message"] == "The configuration is not available.":
+
+        #     device_logger.warning("\u26A0 Unable to prepare device.  \n\t\tError:  {}".format(
+        #         json_data["Message"]))
+
+        #     # Erase device
+        #     erase_device(device)
+
+
+
+
+def execute_cfgutil(ECID, command): 
+
+    results = run_utility( "cfgutil --ecid {} --format JSON {}".format(ECID, command))
+
+    if re.match( "cfgutil: error: no devices found", results["stderr"] ):
+        print("Exiting...")
+        sys.exit(1)
+
+    # Verify success
+    if results["success"]:
+        # Load the JSON into an Object
+        # print("\tReturning session info:  {}".format(results["stdout"]))
+        json_data = parse_json(results["stdout"])
+        check_for_cfgutil_errors(ECID, json_data)
+        return results, json_data["Output"][ECID]
+        
+
+# print("\tERROR:  \u26A0 Unable to obtain device info")
+# print("\tReturn Code:  {}".format(results["exitcode"]))
+# print("\tstdout:  {}".format(results["stdout"]))
+# print("\tstderr:  {}".format(results["stderr"]))
+
+
+
+
+
+
+
+
+
+def run_utility(command):
     """
     A helper function for subprocess.
 
@@ -78,8 +269,10 @@ def firmware_check(model):
 
     # Look up current version results
     # response = urllib.request.urlopen("http://phobos.apple.com/version").read()
-    response = urllib.request.urlopen("http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version/").read()
-    content = plistlib.loads(response)
+    # response = urllib.request.urlopen("http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version/").read()
+    response = requests.get(
+        "http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version/")
+    content = plistlib.loads(response.text)
 
     # Get the dict item that contains the info required
     keys = content.get('MobileDeviceSoftwareVersionsByVersion')
@@ -160,10 +353,14 @@ def clean_configurator_temp_dir():
                         for sub_sub_folder in os.scandir(sub_folder.path):
 
                             # Again, confirm item is a folder and check it's last access time
-                            if sub_sub_folder.is_dir() and os.path.getatime(sub_sub_folder) < reference_time and is_string_GUID(sub_sub_folder.name):
+                            if ( sub_sub_folder.is_dir() and 
+                                os.path.getatime(sub_sub_folder) < reference_time and 
+                                is_string_GUID(sub_sub_folder.name) 
+                            ):
 
                                 # Delete the directory:
-                                print("Deleting temporary directory:  {}".format(sub_sub_folder.name))
+                                print("Deleting temporary directory:  {}".format(
+                                    sub_sub_folder.name))
                                 shutil.rmtree(sub_sub_folder.path)
 
 
