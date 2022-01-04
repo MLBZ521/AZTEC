@@ -3,8 +3,9 @@ import sqlite3
 import sys
 import time
 
+
 class Query():
-    """A Class that creates a Context Manager to interact with a sqlite database"""
+    """A Class that creates a Context Manager to interact with a sqlite database."""
 
     def __init__(self, database="devices.db", timeout=10):
         self.database = database
@@ -35,7 +36,7 @@ class Query():
 
 def init_db(database):
     """
-    A helper function to initialize a database
+    A helper function to initialize a database.
 
     Args:
         database:  The name of the database file to create
@@ -44,7 +45,7 @@ def init_db(database):
     print("Initalizing the database...\n")
 
     # Check if the tables exist
-    with Query() as run:
+    with Query(database=database) as run:
         result_devices = run.execute( 
             "SELECT count(name) FROM sqlite_master WHERE type='table' AND name='devices'" 
                 ).fetchone()

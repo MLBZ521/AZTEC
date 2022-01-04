@@ -1,10 +1,11 @@
 import os
 
-import utilities
-from db_utils import Query
+from AZTEC import utilities
+from AZTEC.db_utils import Query
 
 
 def main():
+    """Handles the detach logic; called from cfgutil --on-detach."""
 
     main_logger = utilities.log_setup()
 
@@ -31,9 +32,6 @@ def main():
         # If a device was retrived
         if device:
 
-            # Get the devices' serial number (this will be for user facing content)
-            # serial_number = device["SerialNumber"]
-
             # Check device's current state
             if device['status'] == "erasing":
 
@@ -43,15 +41,6 @@ def main():
                 with Query() as run:
                     results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
                         ("erased", session_ECID))
-
-            # # Check device's current state
-            # elif device['status'] == "reviving":
-            #     device_logger.info("\U0001F4A5 Device is rebooting after attempting to revive it from recovery mode...")
-
-            #     # Update status in the database
-            #     with Query() as run:
-            #         results = run.execute('UPDATE devices SET status = ? WHERE ECID = ?', 
-            #             ("erased", session_ECID))
 
             # Check device's current state
             elif device['status'] == "done":
