@@ -59,13 +59,13 @@ def create_or_update_record(ECID, status=None):
 
     activationState = session_info_full["activationState"]
     batteryCurrentCapacity = session_info_full["batteryCurrentCapacity"]
-    batteryIsCharging = session_info_full["batteryIsCharging"]
+    batteryIsCharging = "True" if session_info_full["batteryIsCharging"] else "False"
     bootedState = session_info_full["bootedState"]
     buildVersion = os.getenv("buildVersion") or session_info_full["buildVersion"]
     deviceType = os.getenv("deviceType") or session_info_full["deviceType"]
     firmwareVersion = os.getenv("firmwareVersion") or session_info_full["firmwareVersion"]
     locationID = os.getenv("locationID") or session_info_full["locationID"]
-    isSupervised = session_info_full["isSupervised"]
+    isSupervised = "True" if session_info_full["isSupervised"] else "False"
     serial_number = session_info_full["serialNumber"]
     udid = os.getenv("UDID") or session_info_full["UDID"]
 

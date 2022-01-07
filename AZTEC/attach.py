@@ -1,4 +1,6 @@
 import os
+
+from distutils.util import strtobool
 from pkg_resources import parse_version
 
 from AZTEC import utilities
@@ -56,7 +58,7 @@ def main():
 
             # Set the device States
             activation_state = device["activationState"]
-            supervision_state = device["isSupervised"]
+            supervision_state = strtobool(device["isSupervised"])
 
             # Check device's current state
             if activation_state == "Unactivated":
