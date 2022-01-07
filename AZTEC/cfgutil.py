@@ -5,8 +5,7 @@ import shutil
 import stat
 import sys
 
-from AZTEC import utilities
-from AZTEC.actions import erase_device
+from AZTEC import actions, utilities
 from AZTEC.db_utils import Query
 
 
@@ -86,7 +85,7 @@ def check_for_errors(ECID, json_data):
                     json_data["Message"]))
 
                 # Erase device
-                erase_device(device)
+                actions.erase_device(device)
 
             # Error Code:  ?
             elif json_data["Message"] == "The device is not activated.":
@@ -96,7 +95,7 @@ def check_for_errors(ECID, json_data):
                     json_data["Message"]))
 
                 # Erase device
-                erase_device(device)
+                actions.erase_device(device)
 
             # Error Code:  ?
             elif ( json_data["Message"] == 
@@ -106,7 +105,7 @@ def check_for_errors(ECID, json_data):
                 device_logger.info("Device was already prepared, erasing it...")
 
                 # Erase device
-                erase_device(device)
+                actions.erase_device(device)
 
             else:
 
@@ -115,7 +114,7 @@ def check_for_errors(ECID, json_data):
                     "\U0001F6D1 Unaccounted for failure.  Error was:\n{}".format(json_data))
                 
                 # Erase device
-                erase_device(device)
+                actions.erase_device(device)
 
         elif (
             utilities.keys_exists(json_data, "Output", "Errors", ECID) and 
@@ -128,7 +127,7 @@ def check_for_errors(ECID, json_data):
                 device_logger.warning("\u26A0 Unable to pair with device, erasing...")
 
                 # Erase device
-                erase_device(device)
+                actions.erase_device(device)
 
                 # or:
                 # device_logger.info(
