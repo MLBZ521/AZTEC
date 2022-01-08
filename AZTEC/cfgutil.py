@@ -29,16 +29,16 @@ def execute(ECID, command):
         sys.exit(1)
 
     # Verify success
-    if not results["success"]:
-        device_logger.error(
-            "Return Code:  {}\nstdout:  {}\nstderr:  {}".format(
-                results["exitcode"], results["stdout"], results["stderr"]))
+    # if not results["success"]:
+    #     device_logger.error(
+    #         "Return Code:  {}\nstdout:  {}\nstderr:  {}".format(
+    #             results["exitcode"], results["stdout"], results["stderr"]))
 
     # Load the JSON into an Object
     json_data = utilities.parse_json(results["stdout"])
     # device_logger.debug("cfgutil > execute > json_data:  {}".format(json_data))
     check_for_errors(ECID, json_data)
-    
+
     try:
         return results, json_data["Output"][ECID]
     except:
@@ -72,7 +72,7 @@ def check_for_errors(ECID, json_data):
 
             if json_data["Code"] == 401:
                 device_logger.error(
-                    "\u26A0\U0001F6D1\u26A0 Mac is out of date!\nError Message:  {}".format(
+                    "\u26A0\U0001F6D1\u26A0 Mac is out of date!\n\tError Message:  {}".format(
                         json_data["Message"]))
                 sys.exit(1)
 
@@ -80,8 +80,8 @@ def check_for_errors(ECID, json_data):
             elif json_data["Code"] == 33001:
                 # Message: "The configuration is not available."
 
-                device_logger.warning(
-                    "\u26A0 Failed to prepare device, trying again.\n\t\tError:\n{}".format(
+                device_logger.error(
+                    "\u26A0 Failed to prepare device, trying again.\n\tError:  {}".format(
                     json_data["Message"]))
 
                 # Erase device
@@ -90,8 +90,8 @@ def check_for_errors(ECID, json_data):
             # Error Code:  ?
             elif json_data["Message"] == "The device is not activated.":
 
-                device_logger.warning(
-                    "\U0001F6D1 Unable to prepare device.  \n\t\tError:  {}".format(
+                device_logger.error(
+                    "\U0001F6D1 Unable to prepare device.\n\tError:  {}".format(
                     json_data["Message"]))
 
                 # Erase device
@@ -102,7 +102,7 @@ def check_for_errors(ECID, json_data):
                 "The device is already prepared and must be erased to change settings." ):
 
                 # If the device was already prepared, erase it
-                device_logger.info("Device was already prepared, erasing it...")
+                device_logger.warning("Device was already prepared, erasing it...")
 
                 # Erase device
                 actions.erase_device(device)
@@ -110,9 +110,9 @@ def check_for_errors(ECID, json_data):
             else:
 
                 # Unknown error, erase and try again
-                device_logger.warning(
-                    "\U0001F6D1 Unaccounted for failure.  Error was:\n{}".format(json_data))
-                
+                device_logger.error(
+                    "\U0001F6D1 Unaccounted for failure.\n\tError was:  {}".format(json_data))
+
                 # Erase device
                 actions.erase_device(device)
 
