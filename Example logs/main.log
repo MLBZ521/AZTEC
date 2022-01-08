@@ -1,0 +1,35 @@
+2022-01-07 15:05:50,927 | [INFO] | 0x6213A108B603A - [ATTACH WORKFLOW]
+2022-01-07 15:05:50,939 | [INFO] | 0x004F709DB29F9 - [ATTACH WORKFLOW]
+2022-01-07 15:05:52,760 | [INFO] | 0x004F709DB29F9 - ➕ Adding device to queue...
+2022-01-07 15:05:52,837 | [INFO] | 0x6213A108B603A - ➕ Adding device to queue...
+2022-01-07 15:05:54,408 | [INFO] | 0x6213A108B603A - ☠ To proceed, the device will be erased!
+2022-01-07 15:05:54,409 | [INFO] | 0x6213A108B603A - ⚠⚠⚠ *** You have five seconds to remove the device before it is wiped! *** ⚠⚠⚠
+2022-01-07 15:05:55,143 | [INFO] | 0x004F709DB29F9 - ☠ To proceed, the device will be erased!
+2022-01-07 15:05:55,144 | [INFO] | 0x004F709DB29F9 - ⚠⚠⚠ *** You have five seconds to remove the device before it is wiped! *** ⚠⚠⚠
+2022-01-07 15:05:59,477 | [INFO] | 0x6213A108B603A - 💣 Erasing and updating device...
+2022-01-07 15:06:00,172 | [INFO] | 0x004F709DB29F9 - 💣 Erasing device...
+2022-01-07 15:06:24,633 | [INFO] | 0x004F709DB29F9 - [DETACH WORKFLOW]
+2022-01-07 15:06:24,644 | [INFO] | 0x004F709DB29F9 - 💥 Erased device!
+2022-01-07 15:07:03,037 | [INFO] | 0x004F709DB29F9 - [ATTACH WORKFLOW]
+2022-01-07 15:07:05,095 | [INFO] | 0x004F709DB29F9 - ➕ Updating queue...
+2022-01-07 15:07:05,098 | [INFO] | 0x004F709DB29F9 - ⏳ Waiting for device to finish booting...
+2022-01-07 15:08:15,130 | [INFO] | 0x004F709DB29F9 - ⚙ Preparing
+2022-01-07 15:08:54,955 | [ERROR] | 0x004F709DB29F9 - ⚠ Failed to prepare device, trying again.
+	Error:  The configuration is not available.
+2022-01-07 15:08:54,956 | [INFO] | 0x004F709DB29F9 - ☠ To proceed, the device will be erased!
+2022-01-07 15:08:54,959 | [INFO] | 0x004F709DB29F9 - ⚠⚠⚠ *** You have five seconds to remove the device before it is wiped! *** ⚠⚠⚠
+2022-01-07 15:09:00,026 | [INFO] | 0x004F709DB29F9 - 💣 Erasing device...
+2022-01-07 15:09:15,861 | [INFO] | 0x004F709DB29F9 - [DETACH WORKFLOW]
+2022-01-07 15:09:15,864 | [INFO] | 0x004F709DB29F9 - 💥 Erased device!
+2022-01-07 15:09:54,070 | [INFO] | 0x004F709DB29F9 - [ATTACH WORKFLOW]
+2022-01-07 15:09:56,063 | [INFO] | 0x004F709DB29F9 - ➕ Updating queue...
+2022-01-07 15:09:56,066 | [INFO] | 0x004F709DB29F9 - ⏳ Waiting for device to finish booting...
+2022-01-07 15:10:49,903 | [INFO] | main - Deleting temporary directory:  7E5DF9AD-6DE0-4168-9A6B-91302382A53F
+2022-01-07 15:10:49,906 | [INFO] | main - Deleting temporary directory:  A7E075D6-0CDC-445C-BD45-013EB9962E4D
+2022-01-07 15:10:49,907 | [INFO] | main - Deleting temporary directory:  B4AF956E-53DA-4656-BB75-C0755D95E21B
+2022-01-07 15:10:49,909 | [INFO] | main - Deleting temporary directory:  0E7E6905-67D1-4571-B129-F145A9C29F0C
+2022-01-07 15:10:49,911 | [INFO] | main - Deleting temporary directory:  F1B50CCB-0BFB-4A15-8797-B49A90940A18
+2022-01-07 15:11:06,133 | [INFO] | 0x004F709DB29F9 - ⚙ Preparing
+2022-01-07 15:12:31,096 | [INFO] | 0x004F709DB29F9 - 🟢 [DONE] Device has been provisioned, it can be unplugged!
+2022-01-07 15:16:49,445 | [INFO] | 0x6213A108B603A - ⚙ Preparing
+2022-01-07 15:17:44,378 | [INFO] | 0x6213A108B603A - 🟢 [DONE] Device has been provisioned, it can be unplugged!
