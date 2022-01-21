@@ -1,13 +1,13 @@
-**A**utomated **Z**ero **T**ouch **E**nrollment **C**onfigurator
+# **A**utomated **Z**ero **T**ouch **E**nrollment **C**onfigurator
 ======
 
-AZTEC utilizes the Apple Configurator Command Line Tools (`cfgutil`) to automate the provisioning process of Apple Devices.
+AZTEC utilizes the Apple Configurator Automation Tools (`cfgutil`) to automate the provisioning process of Apple Devices.
 
 ## About
 
 AZTEC is a Python3 application that utilizes `cfgutil` to execute workflows when a device is connected (attached) or disconnected (detached) from a Mac.  This process was written to be able to quickly provision large batches (hundreds) of devices in a short amount of time.  Apple Configurator, as of July 2020, is limited to 64 devices connected at one time, I do not know if `cfgutil` has the same limitation, but you'll also be limited to the power requirements of each device and each hub on each USB port of the host Mac.
 
-While Apple and every MDM vendor boast "Zero Touch Enrollment," that's technically mis-leading.  Yes, it does _now_ exist with macOS 11+ on Macs and Apple TVs, however, on devices running iOS/iPadOS, this not the case.  A human has to connect the device to the internet and complete the Setup Assistant.  The Apple Configurator CLI Tools provide a method get this experience.
+While Apple and every MDM vendor boast "Zero Touch Enrollment," that's technically mis-leading.  Yes, it does _now_ exist with macOS 11+ on Macs and Apple TVs, however, on devices running iOS/iPadOS, this not the case.  A human has to connect the device to the internet and complete the Setup Assistant.  The Apple Configurator Automation Tools provide a method get this experience.
 
 There are a few other tools out there that do something similar; mainly, AZTEC differs by being simple -- it doesn't try to configure the device, instead AZTEC attempts to provide a zero touch method to wipe and perform an Automated Device Enrollment while being MDM agnostic.  So all the MDM admin has to do is configure the MDM side with how the device should be setup (enrollment settings, Configuration Profiles, VPP Apps, etc.) and AZTEC will essentially "push the buttons" for the admin during Setup Assistant.
 
@@ -28,7 +28,7 @@ Another benefit of utilizing this workflow is it allows the host Mac to cache fi
 
 ### Verbosity / Logging
 
-Each action is simultaneously written to stdout (Terminal) and to a log file when it is execute.  All INFO and higher-level log entires are written to the "main.log" file while a separate log is tracked for each and every individual device.  This is done to be able to more easily determine what actions are taken on a single devices when reviewing or troubleshooting any potential issues with AZTEC.
+Each action is simultaneously written to stdout (Terminal) and to a log file when it is executed.  All INFO and higher-level log entires are written to the "main.log" file while a separate log is tracked for each and every individual device which also contains DEBUG entires.  This is to be able to more easily determine what actions are taken on a single device when reviewing or troubleshooting potential logic issues.
 
 I have included emojis in the log entries to mainly for the console output to make it easier and more obvious to the admin what action is being taken and when a device is "done" and can be unplugged.
 
@@ -56,17 +56,26 @@ Lofty goals:
 
 ##  Requirements
 
-Python3 and the below libraries are required on any system that runs this script.  You can deploy a relocatable Python framework to support this.  See Greg Neagle's [Relocatable Python Framework](https://github.com/gregneagle/relocatable-python) and the [MacAdmins Python](https://github.com/macadmins/python) for details.
+Software:
+  * Python3 and the below libraries are required on any system that runs this script.
+    * The latest version of the script was tested using Python 3.9.2, but I believe most Python3 versions should be supported.
+  * Non-standard libraries that are used in this project:
+    * requests
+  * Apple Configurator
+    * Apple Configurator Automation Tools
 
-The latest version of the script was tested using Python 3.9.2, but I believe most Python3 versions should be supported.
-
-Non-standard libraries that are used in this project:
-  * requests
+Hardware:
+  * A host Mac with available USB Ports
+  * Optionally, though highly recommended, is a powered USB Hub capable of charging _and_ data
+    * Finding a reliable hub seems to be the biggest issue
+  * Plenty of USB ports _and_ cables to connect up to as many devices as you'd like to re-provision at once (max 64)
 
 
 ## How to setup and run
 
-If devices are WiFi only, you'll need to enable the host Mac to share its internet connection.
+Download Apple Configurator and then install the Apple Configurator Automation Tools ( Menu > Apple Configurator 2 > Install Automation Tools... ).
+
+If devices are WiFi only, you'll need to enable the host Mac to share its internet connection in some form.  The most simipliest way to provide internet access is desribed below.
 
 **Note:**  802.1x enabled networks _cannot_ be shared; the host Mac will need to be on a non-802.1x enabled network for this to work.
 
@@ -81,11 +90,10 @@ macOS 10.14 and earlier
   * Select the network interface the Mac is currently using in the `Sharing your connection from:` dropdown menu
   * Select iPad USB (or iPhone/iPod USB) in the `To computers using:` box
 
-
 To run:
   * `/path/to/AZTEC/main.py [-h] [--database DATABASE] [--reset {true,false,yes,y,no,n}]`
 
-**Note:**  If your Python3 framework is in a different location than what is listed in the shebang (`#!`) in `main.py`, you'll need to preference the above command with the path to your Python3 framework.
+**Note:**  If your Python3 framework is in a different location than what is listed in the shebang (`#!`) in `main.py`, you'll need to prepend the above command with the path to your Python3 framework (or edit the shebang).
 
 Optional Parameters:
   * `[ --help | -h ]`
